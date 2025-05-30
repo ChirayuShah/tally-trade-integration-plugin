@@ -1,0 +1,80 @@
+;; =======================================================
+;; TradesError.tdl - Error Handling and Logging for Trades Plugin
+;; Version: 1.0
+;; =======================================================
+
+[Include: TradesConfig.tdl]
+
+;; Log Function Definition
+[Function: LogMessage]
+    Parameter: MessageText : String
+    Variable : CurrentTime : String
+    00 : SET : ##CurrentTime : $$SystemTime
+    10 : IF : ##LOG_ENABLED = "Yes"
+    20     : APPEND FILE : ##LOG_FILE_PATH : ##CurrentTime + ": " + ##MessageText
+    30 : END IF
+
+;; Error Handler Function
+[Function: HandleError]
+    Parameter: ErrorCode  : String
+    Parameter: ErrorDesc  : String
+    00 : CALL : LogMessage : "Error: " + ##ErrorCode + " - " + ##ErrorDesc
+    10 : DISPLAY : ##ErrorDesc
+    20 : SET : ##LastErrorCode : ##ErrorCode
+    30 : SET : ##LastErrorDesc : ##ErrorDesc
+
+;; API Error Handler
+[Function: HandleAPIError]
+    Parameter: APIResponse : String
+    00 : IF : $$IsEmpty:##APIResponse
+    10     : CALL : HandleError : "API_001" : ##ERR_API_FETCH
+    20 : ELSE IF : $$Contains:##APIResponse:"timeout"
+    30     : CALL : HandleError : "API_002" : ##ERR_API_TIMEOUT
+    40 : ELSE
+    50     : CALL : HandleError : "API_003" : ##ERR_JSON_PARSE
+    60 : END IF
+
+;; JSON Validation Function
+[Function: ValidateTradeJSON]
+    Parameter: JSONData : String
+    Variable : IsValid : String : "TRUE"
+    00 : IF : NOT $$Contains:##JSONData:"scrip"
+    10     : SET : ##IsValid : "FALSE"
+    20 : END IF
+    30 : IF : NOT $$Contains:##JSONData:"qty"
+    40     : SET : ##IsValid : "FALSE"
+    50 : END IF
+    60 : IF : NOT $$Contains:##JSONData:"rate"
+    70     : SET : ##IsValid : "FALSE"
+    80 : END IF
+    90 : RETURN : ##IsValid
+
+;; Recovery Function
+[Function: RecoverFromError]
+    00 : CALL : LogMessage : "Attempting recovery from last error"
+    10 : IF : ##LastErrorCode = "API_001"
+    20     : CALL : RetryAPIConnection
+    30 : ELSE IF : ##LastErrorCode = "API_002"
+    40     : CALL : IncreaseTimeout
+    50 : END IF
+    60 : REFRESH : TradeDetailsPanel
+
+;; Retry API Connection
+[Function: RetryAPIConnection]
+    Variable: RetryCount : Number : 0
+    00 : WHILE : ##RetryCount < 3
+    10     : CALL : FetchTradeData
+    20     : IF : $$IsSuccess
+    30         : RETURN : "TRUE"
+    40     : END IF
+    50     : SET : ##RetryCount : ##RetryCount + 1
+    60     : WAIT : 1000  ; Wait 1 second between retries
+    70 : END WHILE
+    80 : RETURN : "FALSE"
+
+;; Increase Timeout
+[Function: IncreaseTimeout]
+    00 : SET : ##API_TIMEOUT : ##API_TIMEOUT + 10000  ; Add 10 seconds
+    10 : IF : ##API_TIMEOUT > 60000  ; Max 1 minute
+    20     : SET : ##API_TIMEOUT : 60000
+    30 : END IF
