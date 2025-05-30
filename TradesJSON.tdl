@@ -1,0 +1,104 @@
+;; =======================================================
+;; TradesJSON.tdl - JSON Parsing Module for Trades Plugin
+;; Version: 1.0
+;; =======================================================
+
+[Include: TradesError.tdl]
+
+;; JSON Parser Functions
+[Function: ParseTradeJSON]
+    Parameter: JSONString : String
+    Variable : CurrentPos : Number : 0
+    Variable : TradeCount : Number : 0
+    
+    00 : CALL : ClearTradesTable
+    10 : IF : NOT $$ValidateTradeJSON:##JSONString
+    20     : CALL : HandleError : "JSON_001" : ##ERR_JSON_PARSE
+    30     : RETURN : "FALSE"
+    40 : END IF
+    
+    50 : WHILE : $$ExtractNextTrade:##JSONString:##CurrentPos
+    60     : SET : ##TradeCount : ##TradeCount + 1
+    70     : CALL : ProcessTrade : $$LastExtractedTrade
+    80 : END WHILE
+    
+    90 : RETURN : ##TradeCount
+
+;; Clear existing trades table
+[Function: ClearTradesTable]
+    00 : DELETE TABLE : Trades
+    10 : CREATE TABLE : Trades
+
+;; Process individual trade
+[Function: ProcessTrade]
+    Parameter: TradeData : String
+    Variable : ScripName : String
+    Variable : Quantity  : Number
+    Variable : Rate      : Number
+    
+    00 : SET : ##ScripName : $$ExtractValue:##TradeData:"scrip"
+    10 : SET : ##Quantity  : $$ExtractValue:##TradeData:"qty"
+    20 : SET : ##Rate      : $$ExtractValue:##TradeData:"rate"
+    
+    30 : IF : NOT $$IsEmpty:##ScripName
+    40     : CREATE RECORD : Trades
+    50     : SET FIELD    : Trades : ScripName : ##ScripName
+    60     : SET FIELD    : Trades : Quantity  : ##Quantity
+    70     : SET FIELD    : Trades : Rate      : ##Rate
+    80 : END IF
+
+;; Extract value from JSON key
+[Function: ExtractValue]
+    Parameter: JSONString : String
+    Parameter: Key       : String
+    Variable : StartPos  : Number
+    Variable : EndPos    : Number
+    Variable : Value     : String
+    
+    00 : SET : ##StartPos : $$IndexOf:##JSONString:"\""+##Key+"\":"
+    10 : IF : ##StartPos = -1
+    20     : RETURN : ""
+    30 : END IF
+    
+    40 : SET : ##StartPos : ##StartPos + $$Length:##Key + 3
+    50 : SET : ##EndPos   : $$IndexOf:##JSONString:",":##StartPos
+    60 : IF : ##EndPos = -1
+    70     : SET : ##EndPos : $$IndexOf:##JSONString:"}":##StartPos
+    80 : END IF
+    
+    90 : SET : ##Value : $$Substring:##JSONString:##StartPos:##EndPos-##StartPos
+    100: RETURN : $$Trim:##Value:"\" "
+
+;; Format trade for display
+[Function: FormatTradeForDisplay]
+    Parameter: ScripName : String
+    Parameter: Quantity  : Number
+    Parameter: Rate      : Number
+    Variable : Display   : String
+    
+    00 : SET : ##Display : $$PadRight:##ScripName:20
+    10 : SET : ##Display : ##Display + $$PadLeft:$$String:##Quantity:10
+    20 : SET : ##Display : ##Display + $$PadLeft:$$String:##Rate:10
+    30 : RETURN : ##Display
+
+;; Utility function to pad strings
+[Function: PadRight]
+    Parameter: Text   : String
+    Parameter: Length : Number
+    Variable : Result : String : ##Text
+    
+    00 : WHILE : $$Length:##Result < ##Length
+    10     : SET : ##Result : ##Result + " "
+    20 : END WHILE
+    30 : RETURN : ##Result
+
+;; Utility function to pad left
+[Function: PadLeft]
+    Parameter: Text   : String
+    Parameter: Length : Number
+    Variable : Result : String : ##Text
+    
+    00 : WHILE : $$Length:##Result < ##Length
+    10     : SET : ##Result : " " + ##Result
+    20 : END WHILE
+    30 : RETURN : ##Result
