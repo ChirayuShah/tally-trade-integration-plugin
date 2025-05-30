@@ -1,0 +1,84 @@
+;; =======================================================
+;; TradesPlugin.tdl - Plugin to integrate trades into Sales Voucher
+;; Version: 1.0
+;; Description: Fetches trade data from JSON API and pre-fills Qty & Rate
+;; =======================================================
+
+[Include: TallyExternal.tdl]
+[Include: TradesConfig.tdl]
+[Include: TradesError.tdl]
+[Include: TradesJSON.tdl]
+
+;; Variable Declarations
+[Variable: TradeDataJSON]      : String    : ""
+[Variable: SelectedTradeQty]   : Number    : 0
+[Variable: SelectedTradeRate]  : Number    : 0
+[Variable: SelectedScripName]  : String    : ""
+[Variable: APIEndpoint]        : String    : "http://your-api-endpoint/trades"
+
+;; Function to fetch trades from API
+[Function: FetchTradeData]
+    00 : HTTP GET : ##APIEndpoint : ##TradeDataJSON
+    10 : IF : NOT $$IsSuccess
+    20     : DISPLAY : "Error fetching trade data"
+    30     : RETURN : "FALSE"
+    40 : END IF
+    50 : RETURN : "TRUE"
+
+;; Function to handle trade selection
+[Function: OnTradeSelect]
+    00 : SET : ##SelectedTradeQty   : $$TradeQty
+    10 : SET : ##SelectedTradeRate  : $$TradeRate
+    20 : SET : ##SelectedScripName  : $$ScripName
+    30 : MODIFY SCREEN   : "Sales Voucher"
+    40 : SET FIELD VALUE : "Quantity" : ##SelectedTradeQty
+    50 : SET FIELD VALUE : "Rate"     : ##SelectedTradeRate
+    60 : SET FIELD VALUE : "Name"     : ##SelectedScripName
+
+;; Trade Details Panel Definition
+[Part: TradeDetailsPanel]
+    Title     : "Available Trades"
+    Space Top : 1
+    Lines     : 10
+    Width     : 50
+    Border    : Thin
+    Color     : "Blue"
+    Scroll    : Vertical
+    Option    : TradeList
+    Keys      : Enter : OnTradeSelect
+
+;; Extend Sales Voucher to include Trade Panel
+[Form: Sales Voucher]
+    Parts    : TradeDetailsPanel
+    Local    : Field : Default : Options : TradeList
+    Title    : "Sales Entry with Trades"
+
+;; Style definitions for modern look
+[Field: TradeList]
+    Type     : String
+    Align    : Left
+    Color    : "Black"
+    BG Color : "White"
+    Width    : 48
+    Table    : Trades
+    Repeat   : $$LineCount
+    Line     : $$CurrentLine
+    Border   : Thin
+
+;; Table to store trade data
+[Table: Trades]
+    Type    : String
+    Fields  : ScripName, Quantity, Rate
+    Index   : ScripName
+
+;; Auto-Refresh function (called periodically)
+[Function: AutoRefreshTrades]
+    00 : CALL : FetchTradeData
+    10 : IF : $$IsSuccess
+    20     : REFRESH : TradeDetailsPanel
+    30 : END IF
+
+;; Initialize plugin
+[Function: InitializeTradesPlugin]
+    00 : CALL : FetchTradeData
+    10 : SET TIMER : AutoRefreshTrades : 300000  ; Refresh every 5 minutes
