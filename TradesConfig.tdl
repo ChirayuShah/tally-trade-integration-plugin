@@ -1,0 +1,26 @@
+;; =======================================================
+;; TradesConfig.tdl - Configuration for Trades Plugin
+;; Version: 1.0
+;; =======================================================
+
+[System: UDF]
+
+;; API Configuration
+[Variable: API_ENDPOINT]     : String : "http://your-api-endpoint/trades"
+[Variable: API_TIMEOUT]      : Number : 30000  ; 30 seconds
+[Variable: REFRESH_INTERVAL] : Number : 300000 ; 5 minutes
+
+;; UI Configuration
+[Variable: PANEL_WIDTH]      : Number : 50
+[Variable: PANEL_HEIGHT]     : Number : 10
+[Variable: PANEL_COLOR]      : String : "Blue"
+[Variable: PANEL_BG_COLOR]   : String : "White"
+
+;; Error Messages
+[Variable: ERR_API_TIMEOUT]  : String : "API request timed out. Please try again."
+[Variable: ERR_API_FETCH]    : String : "Failed to fetch trade data. Please check your connection."
+[Variable: ERR_JSON_PARSE]   : String : "Error parsing trade data. Invalid format received."
+
+;; Logging Configuration
+[Variable: LOG_ENABLED]      : String : "Yes"
+[Variable: LOG_FILE_PATH]    : String : "TallyLogs/trades_plugin.log"
